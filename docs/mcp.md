@@ -6,11 +6,11 @@ send replies, manage drafts, and transfer attachments.
 ## Connect a local client
 
 Start Proton Bridge and sign in. Install Go 1.25.3 or later, Python 3.13 or later,
-and uv. From this fork's checkout, build pm-cli and install the server:
+and uv. From this fork's checkout, build pm-cli and install the optional server dependencies:
 
 ```sh
 go build -o pm-cli ./cmd/pm-cli
-uv sync --frozen --no-dev
+uv sync --frozen --no-dev --extra mcp
 ```
 
 Use your existing pm-cli configuration, or configure your Bridge account with
@@ -23,7 +23,7 @@ A password file must be readable and nonempty. pm-cli ignores trailing newlines.
 Set your client's working directory to this checkout and its launch command to:
 
 ```sh
-uv run pm-cli-mcp --binary ./pm-cli --workspace ./pm-cli-files
+uv run --no-dev --extra mcp pm-cli-mcp --binary ./pm-cli --workspace ./pm-cli-files
 ```
 
 ## Connect over HTTP
@@ -31,7 +31,7 @@ uv run pm-cli-mcp --binary ./pm-cli --workspace ./pm-cli-files
 Create a bearer-token file outside the workspace, then start the server:
 
 ```sh
-uv run pm-cli-mcp --binary ./pm-cli --transport http \
+uv run --no-dev --extra mcp pm-cli-mcp --binary ./pm-cli --transport http \
     --token-file /run/secrets/mcp-token --workspace ./pm-cli-files
 ```
 

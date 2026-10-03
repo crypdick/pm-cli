@@ -10,7 +10,7 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim@sha256:531f855bda2c73cd6ef67d
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY pm_cli_mcp/ pm_cli_mcp/
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --extra mcp
 COPY --from=cli /pm-cli /usr/local/bin/pm-cli
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 USER 950:950

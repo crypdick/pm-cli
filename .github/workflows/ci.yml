@@ -51,7 +51,11 @@ jobs:
         with:
           go-version-file: go.mod
       - uses: astral-sh/setup-uv@v7
-      - run: uv sync --frozen
-      - run: uv run ruff check pm_cli_mcp tests
-      - run: uv run ruff format --check pm_cli_mcp tests
-      - run: uv run pytest -q
+      - name: Verify base install excludes MCP
+        run: |
+          uv sync --frozen
+          uv run --no-sync python -c "import importlib.util; assert all(importlib.util.find_spec(name) is None for name in ('fastmcp', 'jsonschema'))"
+      - run: uv sync --frozen --extra mcp
+      - run: uv run --extra mcp ruff check pm_cli_mcp tests
+      - run: uv run --extra mcp ruff format --check pm_cli_mcp tests
+      - run: uv run --extra mcp pytest -q
