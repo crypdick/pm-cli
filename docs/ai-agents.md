@@ -145,9 +145,10 @@ pm-cli works seamlessly with Claude Code. Example prompts:
 - "Reply to email 456 with 'Thanks!'"
 - "Forward email 789 to the team"
 
-## MCP Server
+## MCP server
 
-The optional FastMCP server exposes individual CLI commands as typed tools over stdio or authenticated HTTP. See [MCP setup](mcp.md).
+[Connect your Model Context Protocol (MCP) client](mcp.md) to search mail, send replies, and manage drafts
+over stdio or authenticated HTTP.
 
 ## Error Handling
 

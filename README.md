@@ -180,7 +180,10 @@ pm-cli config doctor                # Run diagnostics (8 checks)
 
 ## MCP server
 
-An optional [FastMCP server](docs/mcp.md) exposes CLI commands as individual tools over stdio or authenticated HTTP. The Go CLI remains usable without Python.
+Use a Model Context Protocol (MCP) client to search your mail, send replies,
+and manage drafts.
+[Connect your client](docs/mcp.md) over stdio or authenticated HTTP.
+Install Python only if you use the MCP server.
 
 ## AI Agent Integration
 
