@@ -52,10 +52,7 @@ def value_schema(value: dict) -> dict:
         schema["type"] = {"string": "string", "bool": "boolean", "int": "integer"}[kind]
     if value.get("default") is not None and value.get("default") != "":
         default = value["default"]
-        schema["default"] = {
-            "bool": lambda: default == "true",
-            "int": lambda: int(default),
-        }.get(kind, lambda: default)()
+        schema["default"] = json.loads(default) if kind in {"bool", "int"} else default
     return schema
 
 

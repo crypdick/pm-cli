@@ -3,8 +3,10 @@ import base64
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
+import httpx2
 import pytest
 from fastmcp import Client
 from fastmcp.exceptions import ToolError
@@ -152,36 +154,27 @@ async def test_arguments_remain_data(binary, tmp_path):
     assert json.loads(result["stdin"]) == [{"op": "archive", "uids": ["uid:1"]}]
 
 
-async def test_timeout_kills_child(tmp_path):
+@pytest.mark.parametrize("cancel", [False, True])
+async def test_interruption_kills_child(tmp_path, cancel):
     fake = tmp_path / "slow"
     pidfile = tmp_path / "pid"
     fake.write_text(
         f"#!/usr/bin/env python3\nimport os, time\nopen({str(pidfile)!r}, 'w').write(str(os.getpid()))\ntime.sleep(30)\n"
     )
     fake.chmod(0o755)
-    runner = Runner(str(fake), tmp_path / "files", timeout=0.2)
-    with pytest.raises(ToolError, match="timed out"):
-        await runner.execute({"name": "version"}, {})
-    with pytest.raises(ProcessLookupError):
-        os.kill(int(pidfile.read_text()), 0)
-
-
-async def test_cancellation_kills_child(tmp_path):
-    fake = tmp_path / "slow"
-    pidfile = tmp_path / "pid"
-    fake.write_text(
-        f"#!/usr/bin/env python3\nimport os, time\nopen({str(pidfile)!r}, 'w').write(str(os.getpid()))\ntime.sleep(30)\n"
-    )
-    fake.chmod(0o755)
-    runner = Runner(str(fake), tmp_path / "files")
+    runner = Runner(str(fake), tmp_path / "files", timeout=60 if cancel else 0.2)
     task = asyncio.create_task(runner.execute({"name": "version"}, {}))
     for _ in range(100):
         if pidfile.exists():
             break
         await asyncio.sleep(0.01)
     assert pidfile.exists()
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
+    if cancel:
+        task.cancel()
+    with pytest.raises(
+        asyncio.CancelledError if cancel else ToolError,
+        match=None if cancel else "timed out",
+    ):
         await task
     with pytest.raises(ProcessLookupError):
         os.kill(int(pidfile.read_text()), 0)
@@ -190,7 +183,7 @@ async def test_cancellation_kills_child(tmp_path):
 def test_http_requires_auth(binary, tmp_path):
     result = subprocess.run(
         [
-            str(ROOT / ".venv/bin/python"),
+            sys.executable,
             "-m",
             "pm_cli_mcp.server",
             "--transport=http",
@@ -224,8 +217,6 @@ async def test_output_limit_is_error(tmp_path):
 
 async def test_authenticated_http(binary, tmp_path):
     import socket
-    import urllib.error
-    import urllib.request
 
     from fastmcp.client.transports import StreamableHttpTransport
 
@@ -235,7 +226,7 @@ async def test_authenticated_http(binary, tmp_path):
     token = tmp_path / "token"
     token.write_text("test-mcp-token")
     process = await asyncio.create_subprocess_exec(
-        str(ROOT / ".venv/bin/python"),
+        sys.executable,
         "-m",
         "pm_cli_mcp.server",
         "--transport=http",
@@ -247,29 +238,22 @@ async def test_authenticated_http(binary, tmp_path):
         stderr=asyncio.subprocess.DEVNULL,
     )
 
-    def status(request, timeout=1):
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            return response.status
-
     url = f"http://127.0.0.1:{port}"
     try:
-        for _ in range(200):
-            try:
-                assert await asyncio.to_thread(status, url + "/healthz", 0.1) == 200
-                break
-            except urllib.error.URLError:
-                assert process.returncode is None
-                await asyncio.sleep(0.02)
-        else:
-            pytest.fail("HTTP server did not start")
-        for auth in [None, "Bearer wrong-token"]:
-            headers = {"Content-Type": "application/json"}
-            if auth:
-                headers["Authorization"] = auth
-            request = urllib.request.Request(url + "/mcp", data=b"{}", headers=headers)
-            with pytest.raises(urllib.error.HTTPError) as error:
-                await asyncio.to_thread(status, request)
-            assert error.value.code == 401
+        async with httpx2.AsyncClient(base_url=url, timeout=1) as http:
+            for _ in range(200):
+                try:
+                    assert (await http.get("/healthz")).status_code == 200
+                    break
+                except httpx2.TransportError:
+                    assert process.returncode is None
+                    await asyncio.sleep(0.02)
+            else:
+                pytest.fail("HTTP server did not start")
+            for headers in [{}, {"Authorization": "Bearer wrong-token"}]:
+                assert (
+                    await http.post("/mcp", json={}, headers=headers)
+                ).status_code == 401
         async with Client(
             StreamableHttpTransport(url + "/mcp", auth="test-mcp-token")
         ) as client:
