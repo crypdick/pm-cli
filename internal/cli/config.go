@@ -177,6 +177,8 @@ func (c *ConfigShowCmd) Run(ctx *Context) error {
 		fmt.Println("Password: not set (run 'pm-cli config init' to set)")
 	case os.Getenv(config.EnvBridgePassword) != "":
 		fmt.Printf("Password: ********** (from %s; overrides the keyring)\n", config.EnvBridgePassword)
+	case os.Getenv(config.EnvBridgePasswordFile) != "":
+		fmt.Printf("Password: ********** (from %s; overrides the keyring)\n", config.EnvBridgePasswordFile)
 	default:
 		fmt.Println("Password: ********** (stored in keyring)")
 	}
@@ -372,6 +374,15 @@ func (c *ConfigDoctorCmd) Run(ctx *Context) error {
 		detail := fmt.Sprintf("using %s (overrides the keyring)", config.EnvBridgePassword)
 		addResult("Password available", "ok", detail)
 		printResult("ok", "Password available", detail)
+	case os.Getenv(config.EnvBridgePasswordFile) != "":
+		if _, err := cfg.GetPassword(); err != nil {
+			addResult("Password available", "fail", err.Error())
+			printResult("fail", "Password available", err.Error())
+		} else {
+			detail := fmt.Sprintf("using %s (overrides the keyring)", config.EnvBridgePasswordFile)
+			addResult("Password available", "ok", detail)
+			printResult("ok", "Password available", detail)
+		}
 	case cfg.Bridge.Email == "":
 		addResult("Password available", "fail", "cannot check - email not configured")
 		printResult("fail", "Password available", "cannot check - email not configured")

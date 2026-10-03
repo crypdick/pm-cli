@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/bscott/pm-cli/internal/config"
@@ -429,4 +430,41 @@ func TestConfigDoctorSkipsSMTPAuthWhenSMTPPortUnreachable(t *testing.T) {
 	if !found {
 		t.Fatal("expected SMTP connection succeeds check in doctor output")
 	}
+}
+
+func TestConfigDoctorReportsPasswordFile(t *testing.T) {
+	t.Setenv(config.EnvBridgePassword, "")
+	path := filepath.Join(t.TempDir(), "password")
+	t.Setenv(config.EnvBridgePasswordFile, path)
+	if err := os.WriteFile(path, []byte("secret-file-value"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.DefaultConfig()
+	cfg.Bridge.Email = "test@example.com"
+	cfg.Bridge.IMAPPort, cfg.Bridge.SMTPPort = 1, 1
+	var buf bytes.Buffer
+	formatter := output.New(true, false, false, false)
+	formatter.Writer = &buf
+	ctx := &Context{Config: cfg, Formatter: formatter, Globals: &Globals{JSON: true}}
+	if err := (&ConfigDoctorCmd{}).Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		Checks []struct{ Name, Status, Message string }
+	}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	for _, check := range result.Checks {
+		if check.Name == "Password available" {
+			if check.Status != "ok" || !strings.Contains(check.Message, config.EnvBridgePasswordFile) {
+				t.Fatalf("wrong credential source: %+v", check)
+			}
+			if strings.Contains(buf.String(), "secret-file-value") {
+				t.Fatal("doctor leaked password")
+			}
+			return
+		}
+	}
+	t.Fatal("missing password check")
 }
