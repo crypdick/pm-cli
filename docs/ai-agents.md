@@ -145,9 +145,9 @@ pm-cli works seamlessly with Claude Code. Example prompts:
 - "Reply to email 456 with 'Thanks!'"
 - "Forward email 789 to the team"
 
-## MCP Server (Future)
+## MCP Server
 
-A Model Context Protocol server for pm-cli is planned, which will allow direct tool integration with Claude and other LLM interfaces.
+The optional FastMCP server exposes individual CLI commands as typed tools over stdio or authenticated HTTP. See [MCP setup](mcp.md).
 
 ## Error Handling
 

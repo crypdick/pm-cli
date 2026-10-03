@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - feat/fastmcp
 
 # The workflow only reads the repository. Declaring this explicitly keeps the
 # job token from inheriting broader write scopes by default.
@@ -40,3 +41,17 @@ jobs:
 
       - name: Run tests
         run: go test ./...
+
+  mcp:
+    name: MCP tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --frozen
+      - run: uv run ruff check pm_cli_mcp tests
+      - run: uv run ruff format --check pm_cli_mcp tests
+      - run: uv run pytest -q

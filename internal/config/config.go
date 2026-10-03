@@ -26,7 +26,8 @@ const (
 	// password before falling back to the system keyring. This lets pm-cli run
 	// on headless servers that have no D-Bus secret service available, where
 	// keyring.Get fails with "org.freedesktop.secrets was not provided".
-	EnvBridgePassword = "PM_CLI_BRIDGE_PASSWORD"
+	EnvBridgePassword     = "PM_CLI_BRIDGE_PASSWORD"
+	EnvBridgePasswordFile = "PM_CLI_BRIDGE_PASSWORD_FILE"
 )
 
 type BridgeConfig struct {
@@ -148,6 +149,18 @@ func (c *Config) GetPassword() (string, error) {
 		return pw, nil
 	}
 
+	if path := os.Getenv(EnvBridgePasswordFile); path != "" {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("failed to read Bridge password file: %w", err)
+		}
+		password := strings.TrimRight(string(data), "\r\n")
+		if password == "" {
+			return "", errors.New("Bridge password file is empty")
+		}
+		return password, nil
+	}
+
 	if c.Bridge.Email == "" {
 		return "", errors.New("email not configured")
 	}
@@ -167,7 +180,7 @@ func DeletePassword(email string) error {
 
 // secretEnvVars lists environment variables that carry pm-cli credentials and
 // must never be handed to a child process.
-var secretEnvVars = []string{EnvBridgePassword}
+var secretEnvVars = []string{EnvBridgePassword, EnvBridgePasswordFile}
 
 // ScrubSecrets returns env with every pm-cli credential variable removed.
 //

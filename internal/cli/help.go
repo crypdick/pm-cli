@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/alecthomas/kong"
 )
 
 type HelpSchema struct {
@@ -40,352 +42,55 @@ type ArgSchema struct {
 	Description string `json:"description"`
 }
 
+// GenerateHelpJSON derives the schema from the same Kong grammar used to parse
+// commands, so new commands and flags are available to agents automatically.
 func GenerateHelpJSON(cli *CLI) ([]byte, error) {
-	schema := HelpSchema{
-		Name:        "pm-cli",
-		Version:     Version,
-		Description: "ProtonMail CLI via Proton Bridge IMAP/SMTP",
-		GlobalFlags: extractGlobalFlags(),
-		Commands:    extractCommands(cli),
+	parser, err := kong.New(cli, kong.Name("pm-cli"))
+	if err != nil {
+		return nil, err
 	}
-
+	schema := HelpSchema{Name: "pm-cli", Version: Version,
+		Description: "ProtonMail CLI via Proton Bridge IMAP/SMTP",
+		Commands:    commandSchemas(parser.Model.Node, ""),
+		GlobalFlags: flagSchemas(parser.Model.Flags),
+	}
 	return json.MarshalIndent(schema, "", "  ")
 }
 
-func extractGlobalFlags() []FlagSchema {
-	return []FlagSchema{
-		{Name: "--json", Type: "bool", Description: "Output as JSON (applies to all commands)"},
-		{Name: "--help-json", Type: "bool", Description: "Output command help as JSON (AI agent mode)"},
-		{Name: "--config", Short: "-c", Type: "string", Description: "Path to config file"},
-		{Name: "--verbose", Short: "-v", Type: "bool", Description: "Verbose output"},
-		{Name: "--quiet", Short: "-q", Type: "bool", Description: "Suppress non-essential output"},
-	}
-}
-
-func extractCommands(cli *CLI) []CommandSchema {
-	return []CommandSchema{
-		extractConfigCommands(),
-		extractMailCommands(),
-		extractMailboxCommands(),
-		extractLabelCommands(),
-		{
-			Name:        "version",
-			Description: "Show version information",
-			Examples:    []string{"pm-cli version", "pm-cli version --json"},
-		},
-	}
-}
-
-func extractConfigCommands() CommandSchema {
-	return CommandSchema{
-		Name:        "config",
-		Description: "Configuration management",
-		Subcommands: []CommandSchema{
-			{
-				Name:        "config init",
-				Description: "Interactive setup wizard for Proton Bridge connection",
-				Examples:    []string{"pm-cli config init"},
-			},
-			{
-				Name:        "config show",
-				Description: "Display current configuration",
-				Examples:    []string{"pm-cli config show", "pm-cli config show --json"},
-			},
-			{
-				Name:        "config set",
-				Description: "Set a configuration value",
-				Args: []ArgSchema{
-					{Name: "key", Type: "string", Required: true, Description: "Configuration key (e.g., bridge.email, defaults.limit)"},
-					{Name: "value", Type: "string", Required: true, Description: "Value to set"},
-				},
-				Examples: []string{
-					"pm-cli config set defaults.limit 50",
-					"pm-cli config set defaults.format json",
-					"pm-cli config set bridge.email user@protonmail.com",
-				},
-			},
-		},
-	}
-}
-
-func extractMailCommands() CommandSchema {
-	return CommandSchema{
-		Name:        "mail",
-		Description: "Email operations",
-		Subcommands: []CommandSchema{
-			{
-				Name:        "mail list",
-				Description: "List messages in mailbox",
-				Flags: []FlagSchema{
-					{Name: "--mailbox", Short: "-m", Type: "string", Default: "INBOX", Description: "Mailbox name"},
-					{Name: "--limit", Short: "-n", Type: "int", Default: "20", Description: "Number of messages to show"},
-					{Name: "--offset", Type: "int", Default: "0", Description: "Skip first N messages"},
-					{Name: "--page", Short: "-p", Type: "int", Default: "0", Description: "Page number (1-based, combines with limit)"},
-					{Name: "--unread", Type: "bool", Description: "Only show unread messages (server-side SEARCH UNSEEN)"},
-					{Name: "--flagged", Type: "bool", Description: "Only show flagged/starred messages (server-side SEARCH FLAGGED)"},
-					{Name: "--fields", Type: "string", Description: "Comma-separated fields to include in JSON output (uid, seq_num, from, from_address, to, subject, message_id, in_reply_to, date, date_iso, seen, flagged)"},
-					{Name: "--compact", Type: "bool", Description: "Output a bare JSON array instead of the wrapper object (JSON mode only)"},
-				},
-				Examples: []string{
-					"pm-cli mail list",
-					"pm-cli mail list --unread --json",
-					"pm-cli mail list --flagged --json",
-					"pm-cli mail list -m Sent -n 10",
-					"pm-cli mail list --json --fields uid,from_address,subject --compact",
-				},
-			},
-			{
-				Name:        "mail read",
-				Description: "Read a specific message",
-				Args: []ArgSchema{
-					{Name: "id", Type: "string", Required: true, Description: "Message sequence number or uid:<uid>"},
-				},
-				Flags: []FlagSchema{
-					{Name: "--mailbox", Short: "-m", Type: "string", Description: "Mailbox name (defaults to configured mailbox)"},
-					{Name: "--raw", Type: "bool", Description: "Show raw message"},
-					{Name: "--headers", Type: "bool", Description: "Include all headers"},
-					{Name: "--attachments", Type: "bool", Description: "List attachments only"},
-					{Name: "--html", Type: "bool", Description: "Output HTML body instead of plain text"},
-					{Name: "--unread", Type: "bool", Description: "Mark as unread after reading (remove \\Seen)"},
-				},
-				Examples: []string{
-					"pm-cli mail read 123",
-					"pm-cli mail read uid:456 --json",
-					"pm-cli mail read 123 -m Archive",
-					"pm-cli mail read 123 --json",
-					"pm-cli mail read 123 --raw",
-					"pm-cli mail read 123 --unread",
-				},
-			},
-			{
-				Name:        "mail send",
-				Description: "Compose and send email",
-				Flags: []FlagSchema{
-					{Name: "--to", Short: "-t", Type: "[]string", Required: true, Description: "Recipient(s)"},
-					{Name: "--cc", Type: "[]string", Description: "CC recipients"},
-					{Name: "--bcc", Type: "[]string", Description: "BCC recipients"},
-					{Name: "--subject", Short: "-s", Type: "string", Required: true, Description: "Subject line"},
-					{Name: "--body", Short: "-b", Type: "string", Description: "Body text (or use stdin)"},
-					{Name: "--attach", Short: "-a", Type: "[]string", Description: "Attachment file paths"},
-				},
-				Examples: []string{
-					"pm-cli mail send -t user@example.com -s 'Hello' -b 'Message body'",
-					"echo 'Body from stdin' | pm-cli mail send -t user@example.com -s 'Hello'",
-					"pm-cli mail send -t user@example.com -s 'With attachment' -a file.pdf",
-				},
-			},
-			{
-				Name:        "mail delete",
-				Description: "Delete message(s)",
-				Args: []ArgSchema{
-					{Name: "ids", Type: "[]string", Required: true, Description: "Message sequence number(s) or uid:<uid>"},
-				},
-				Flags: []FlagSchema{
-					{Name: "--permanent", Type: "bool", Description: "Skip trash, delete permanently"},
-				},
-				Examples: []string{
-					"pm-cli mail delete 123",
-					"pm-cli mail delete 123 456 789",
-					"pm-cli mail delete 123 --permanent",
-				},
-			},
-			{
-				Name:        "mail move",
-				Description: "Move message to mailbox",
-				Args: []ArgSchema{
-					{Name: "id", Type: "string", Required: true, Description: "Message sequence number or uid:<uid> to move"},
-					{Name: "mailbox", Type: "string", Required: true, Description: "Destination mailbox"},
-				},
-				Examples: []string{
-					"pm-cli mail move 123 Archive",
-					"pm-cli mail move uid:456 Archive",
-					"pm-cli mail move 123 'Custom Folder'",
-				},
-			},
-			{
-				Name:        "mail archive",
-				Description: "Move message(s) to Archive",
-				Args: []ArgSchema{
-					{Name: "ids", Type: "[]string", Required: true, Description: "Message sequence number(s) or uid:<uid>"},
-				},
-				Examples: []string{
-					"pm-cli mail archive 123",
-					"pm-cli mail archive 123 124",
-					"pm-cli mail archive uid:456",
-				},
-			},
-			{
-				Name:        "mail flag",
-				Description: "Manage message flags",
-				Args: []ArgSchema{
-					{Name: "id", Type: "string", Required: true, Description: "Message sequence number or uid:<uid>"},
-				},
-				Flags: []FlagSchema{
-					{Name: "--read", Type: "bool", Description: "Mark as read"},
-					{Name: "--unread", Type: "bool", Description: "Mark as unread"},
-					{Name: "--star", Type: "bool", Description: "Add star"},
-					{Name: "--unstar", Type: "bool", Description: "Remove star"},
-				},
-				Examples: []string{
-					"pm-cli mail flag 123 --read",
-					"pm-cli mail flag 123 --star",
-					"pm-cli mail flag 123 --unread --unstar",
-				},
-			},
-			{
-				Name:        "mail search",
-				Description: "Search messages",
-				Args: []ArgSchema{
-					{Name: "query", Type: "string", Required: true, Description: "Search query"},
-				},
-				Flags: []FlagSchema{
-					{Name: "--mailbox", Short: "-m", Type: "string", Default: "INBOX", Description: "Mailbox to search"},
-					{Name: "--from", Type: "string", Description: "Filter by sender"},
-					{Name: "--subject", Type: "string", Description: "Filter by subject"},
-					{Name: "--since", Type: "string", Description: "Messages since date (YYYY-MM-DD)"},
-					{Name: "--before", Type: "string", Description: "Messages before date (YYYY-MM-DD)"},
-				},
-				Examples: []string{
-					"pm-cli mail search 'meeting'",
-					"pm-cli mail search 'invoice' --from accounts@example.com",
-					"pm-cli mail search '' --since 2024-01-01 --json",
-				},
-			},
-			{
-				Name:        "mail batch",
-				Description: "Run multiple operations in one IMAP session (JSON array on stdin)",
-				Flags: []FlagSchema{
-					{Name: "--file", Short: "-f", Type: "string", Description: "Read operations from a file instead of stdin"},
-					{Name: "--stop-on-error", Type: "bool", Description: "Stop after the first failed operation"},
-				},
-				Examples: []string{
-					`echo '[{"op":"flag","uids":["uid:123"],"read":true}]' | pm-cli mail batch --json`,
-					`echo '[{"op":"label","uids":["uid:1"],"label":"Work"},{"op":"archive","uids":["uid:2"]}]' | pm-cli mail batch --json`,
-					"pm-cli mail batch --file ops.json --json --stop-on-error",
-				},
-			},
-		},
-	}
-}
-
-func extractMailboxCommands() CommandSchema {
-	return CommandSchema{
-		Name:        "mailbox",
-		Description: "Mailbox management",
-		Subcommands: []CommandSchema{
-			{
-				Name:        "mailbox list",
-				Description: "List all mailboxes/folders",
-				Examples:    []string{"pm-cli mailbox list", "pm-cli mailbox list --json"},
-			},
-			{
-				Name:        "mailbox create",
-				Description: "Create new mailbox",
-				Args: []ArgSchema{
-					{Name: "name", Type: "string", Required: true, Description: "Mailbox name to create"},
-				},
-				Examples: []string{"pm-cli mailbox create 'Work Projects'"},
-			},
-			{
-				Name:        "mailbox delete",
-				Description: "Delete mailbox",
-				Args: []ArgSchema{
-					{Name: "name", Type: "string", Required: true, Description: "Mailbox name to delete"},
-				},
-				Examples: []string{"pm-cli mailbox delete 'Old Folder'"},
-			},
-		},
-	}
-}
-
-func extractLabelCommands() CommandSchema {
-	return CommandSchema{
-		Name:        "mail label",
-		Description: "Manage message labels (Proton Mail labels via Bridge)",
-		Subcommands: []CommandSchema{
-			{
-				Name:        "mail label list",
-				Description: "List all available labels",
-				Examples:    []string{"pm-cli mail label list", "pm-cli mail label list --json"},
-			},
-			{
-				Name:        "mail label add",
-				Description: "Add a label to message(s)",
-				Args: []ArgSchema{
-					{Name: "ids", Type: "[]string", Required: true, Description: "Message ID(s) to label"},
-				},
-				Flags: []FlagSchema{
-					{Name: "--label", Short: "-l", Type: "string", Required: true, Description: "Label name to add"},
-					{Name: "--mailbox", Short: "-m", Type: "string", Default: "INBOX", Description: "Source mailbox"},
-				},
-				Examples: []string{
-					"pm-cli mail label add 123 -l Important",
-					"pm-cli mail label add 123 456 -l 'Work/Projects'",
-					"pm-cli mail label add 123 -l Todo -m Archive",
-				},
-			},
-			{
-				Name:        "mail label remove",
-				Description: "Remove a label from message(s)",
-				Args: []ArgSchema{
-					{Name: "ids", Type: "[]string", Required: true, Description: "Message ID(s) to unlabel"},
-				},
-				Flags: []FlagSchema{
-					{Name: "--label", Short: "-l", Type: "string", Required: true, Description: "Label name to remove"},
-				},
-				Examples: []string{
-					"pm-cli mail label remove 123 -l Important",
-					"pm-cli mail label remove 123 456 -l Todo",
-				},
-			},
-		},
-	}
-}
-
-// extractFieldsFromStruct extracts flag/arg information from struct tags using reflection
-// This is used for dynamic introspection when needed
-func extractFieldsFromStruct(t reflect.Type) []FlagSchema {
-	var flags []FlagSchema
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-
-		// Skip embedded structs
-		if field.Anonymous {
+func commandSchemas(node *kong.Node, prefix string) []CommandSchema {
+	var result []CommandSchema
+	for _, child := range node.Children {
+		if child.Type != kong.CommandNode || child.Hidden {
 			continue
 		}
+		name := strings.TrimSpace(prefix + " " + child.Name)
+		command := CommandSchema{Name: name, Description: child.Help,
+			Flags: flagSchemas(child.Flags), Subcommands: commandSchemas(child, name)}
+		for _, arg := range child.Positional {
+			command.Args = append(command.Args, ArgSchema{Name: arg.Name,
+				Type: getTypeString(arg.Target.Type()), Required: arg.Required,
+				Description: arg.Help})
+		}
+		result = append(result, command)
+	}
+	return result
+}
 
-		// Check for kong tags
-		helpTag := field.Tag.Get("help")
-		shortTag := field.Tag.Get("short")
-		defaultTag := field.Tag.Get("default")
-		requiredTag := field.Tag.Get("required")
-
-		if helpTag == "" {
+func flagSchemas(flags []*kong.Flag) []FlagSchema {
+	var result []FlagSchema
+	for _, flag := range flags {
+		if flag.Hidden || flag.Name == "help" {
 			continue
 		}
-
-		flagName := "--" + strings.ToLower(field.Name)
-		if nameTag := field.Tag.Get("name"); nameTag != "" {
-			flagName = "--" + nameTag
+		short := ""
+		if flag.Short != 0 {
+			short = "-" + string(flag.Short)
 		}
-
-		flag := FlagSchema{
-			Name:        flagName,
-			Type:        getTypeString(field.Type),
-			Description: helpTag,
-			Default:     defaultTag,
-			Required:    requiredTag == "true" || requiredTag == "",
-		}
-
-		if shortTag != "" {
-			flag.Short = shortTag
-		}
-
-		flags = append(flags, flag)
+		result = append(result, FlagSchema{Name: "--" + flag.Name, Short: short,
+			Type: getTypeString(flag.Target.Type()), Default: flag.Default,
+			Required: flag.Required, Description: flag.Help})
 	}
-
-	return flags
+	return result
 }
 
 func getTypeString(t reflect.Type) string {
@@ -398,6 +103,8 @@ func getTypeString(t reflect.Type) string {
 		return "bool"
 	case reflect.Slice:
 		return "[]" + getTypeString(t.Elem())
+	case reflect.Map:
+		return "map[string]string"
 	default:
 		return t.String()
 	}

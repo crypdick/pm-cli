@@ -178,6 +178,10 @@ pm-cli config validate              # Test Bridge connection
 pm-cli config doctor                # Run diagnostics (8 checks)
 ```
 
+## MCP server
+
+An optional [FastMCP server](docs/mcp.md) exposes CLI commands as individual tools over stdio or authenticated HTTP. The Go CLI remains usable without Python.
+
 ## AI Agent Integration
 
 pm-cli is designed for AI agent workflows with machine-readable output:

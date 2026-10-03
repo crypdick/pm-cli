@@ -18,6 +18,18 @@ import (
 )
 
 func (c *ConfigInitCmd) Run(ctx *Context) error {
+	if c.Email != "" {
+		cfg := config.DefaultConfig()
+		cfg.Bridge.Email = c.Email
+		if _, err := cfg.GetPassword(); err != nil {
+			return err
+		}
+		if err := cfg.Save(ctx.Globals.Config); err != nil {
+			return err
+		}
+		return ctx.Formatter.PrintJSON(map[string]interface{}{"success": true, "bridge": cfg.Bridge})
+	}
+
 	fmt.Println("ProtonMail CLI Configuration Wizard")
 	fmt.Println("====================================")
 	fmt.Println()

@@ -350,3 +350,32 @@ func containsHelper(s, substr string) bool {
 	}
 	return false
 }
+
+func TestGetPasswordFile(t *testing.T) {
+	t.Setenv(EnvBridgePassword, "")
+	path := filepath.Join(t.TempDir(), "password")
+	t.Setenv("PM_CLI_BRIDGE_PASSWORD_FILE", path)
+	if err := os.WriteFile(path, []byte("bridge-secret\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := DefaultConfig().GetPassword()
+	if err != nil || got != "bridge-secret" {
+		t.Fatalf("GetPassword() = %q, %v", got, err)
+	}
+	t.Setenv(EnvBridgePassword, "environment-secret")
+	got, err = DefaultConfig().GetPassword()
+	if err != nil || got != "environment-secret" {
+		t.Fatalf("environment precedence = %q, %v", got, err)
+	}
+	t.Setenv(EnvBridgePassword, "")
+	if err := os.WriteFile(path, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DefaultConfig().GetPassword(); err == nil {
+		t.Fatal("empty password file must fail")
+	}
+	t.Setenv("PM_CLI_BRIDGE_PASSWORD_FILE", path+"-missing")
+	if _, err := DefaultConfig().GetPassword(); err == nil {
+		t.Fatal("missing password file must fail")
+	}
+}

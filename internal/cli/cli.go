@@ -67,7 +67,9 @@ type ConfigCmd struct {
 	Doctor   ConfigDoctorCmd   `cmd:"" help:"Diagnose configuration issues"`
 }
 
-type ConfigInitCmd struct{}
+type ConfigInitCmd struct {
+	Email string `help:"Configure noninteractively using existing environment/file credentials"`
+}
 
 type ConfigShowCmd struct{}
 
