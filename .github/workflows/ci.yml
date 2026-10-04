@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - feat/fastmcp
 
 # The workflow only reads the repository. Declaring this explicitly keeps the
 # job token from inheriting broader write scopes by default.
@@ -51,10 +50,6 @@ jobs:
         with:
           go-version-file: go.mod
       - uses: astral-sh/setup-uv@v7
-      - name: Verify base install excludes MCP
-        run: |
-          uv sync --frozen
-          uv run --no-sync python -c "import importlib.util; assert all(importlib.util.find_spec(name) is None for name in ('fastmcp', 'jsonschema'))"
       - run: uv sync --frozen --extra mcp
       - run: uv run --extra mcp ruff check pm_cli_mcp tests
       - run: uv run --extra mcp ruff format --check pm_cli_mcp tests

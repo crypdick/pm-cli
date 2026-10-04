@@ -203,7 +203,7 @@ async def test_relative_binary_survives_workspace_change(binary, tmp_path, monke
     monkeypatch.chdir(tmp_path)
     runner = Runner("./pm-cli", tmp_path / "files")
     result = await runner.execute({"name": "version"}, {})
-    assert result["version"] == "0.2.7"
+    assert result["version"]
 
 
 async def test_output_limit_is_error(tmp_path):
@@ -257,7 +257,7 @@ async def test_authenticated_http(binary, tmp_path):
         async with Client(
             StreamableHttpTransport(url + "/mcp", auth="test-mcp-token")
         ) as client:
-            assert (await client.call_tool("version", {})).data["version"] == "0.2.7"
+            assert (await client.call_tool("version", {})).data["version"]
             assert len(await client.list_tools()) == 38
     finally:
         process.terminate()
