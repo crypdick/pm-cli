@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/alecthomas/kong"
@@ -68,7 +67,7 @@ func commandSchemas(node *kong.Node, prefix string) []CommandSchema {
 			Flags: flagSchemas(child.Flags), Subcommands: commandSchemas(child, name)}
 		for _, arg := range child.Positional {
 			command.Args = append(command.Args, ArgSchema{Name: arg.Name,
-				Type: getTypeString(arg.Target.Type()), Required: arg.Required,
+				Type: arg.Target.Type().String(), Required: arg.Required,
 				Description: arg.Help})
 		}
 		result = append(result, command)
@@ -87,27 +86,10 @@ func flagSchemas(flags []*kong.Flag) []FlagSchema {
 			short = "-" + string(flag.Short)
 		}
 		result = append(result, FlagSchema{Name: "--" + flag.Name, Short: short,
-			Type: getTypeString(flag.Target.Type()), Default: flag.Default,
+			Type: flag.Target.Type().String(), Default: flag.Default,
 			Required: flag.Required, Description: flag.Help})
 	}
 	return result
-}
-
-func getTypeString(t reflect.Type) string {
-	switch t.Kind() {
-	case reflect.String:
-		return "string"
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return "int"
-	case reflect.Bool:
-		return "bool"
-	case reflect.Slice:
-		return "[]" + getTypeString(t.Elem())
-	case reflect.Map:
-		return "map[string]string"
-	default:
-		return t.String()
-	}
 }
 
 func PrintHelpJSON(cli *CLI) error {
