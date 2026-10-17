@@ -114,6 +114,8 @@ func TestConfigSetCmdRunBridgeKeys(t *testing.T) {
 		value   string
 		checker func(*config.Config) bool
 	}{
+		{name: "set TLS CA", key: "bridge.tls_ca_file", value: "/certs/bridge.crt", checker: func(c *config.Config) bool { return c.Bridge.TLSCAFile == "/certs/bridge.crt" }},
+		{name: "set TLS server name", key: "bridge.tls_server_name", value: "127.0.0.1", checker: func(c *config.Config) bool { return c.Bridge.TLSServerName == "127.0.0.1" }},
 		{
 			name:  "set imap_host",
 			key:   "bridge.imap_host",

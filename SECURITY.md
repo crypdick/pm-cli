@@ -51,8 +51,8 @@ inject it from a secrets manager rather than a shell profile.
 
 - All connections to Proton Bridge use TLS encryption
 - IMAP uses STARTTLS on port 1143
-- SMTP uses implicit TLS on port 1025
-- Certificate validation is disabled (`InsecureSkipVerify: true`) because Proton Bridge uses self-signed certificates
+- SMTP uses STARTTLS on port 1025
+- Remote Bridge endpoints require an explicit trusted CA and verified server name; the legacy self-signed mode is restricted to loopback
 
 ### Input Handling
 
@@ -70,13 +70,13 @@ inject it from a secrets manager rather than a shell profile.
 
 ### TLS Certificate Validation
 
-The tool disables TLS certificate verification (`InsecureSkipVerify: true`) for connections to Proton Bridge. This is necessary because Proton Bridge uses self-signed certificates. This is acceptable because:
-
-1. Proton Bridge runs locally (127.0.0.1)
-2. The connection never leaves the local machine
-3. Users configure only localhost addresses by default
-
-**Recommendation**: Only use this tool with Proton Bridge running on localhost. Do not configure remote IMAP/SMTP servers.
+Remote connections require `bridge.tls_ca_file` and use certificate-chain and
+hostname verification. An optional `bridge.tls_server_name` selects the name in
+the trusted certificate when a private network alias differs. Configure this
+trust through a trusted administrative channel; never fetch-and-trust a remote
+certificate automatically. Both IMAP and SMTP, including diagnostics, share this
+policy. Without a CA, only literal loopback IPs or localhost may use Bridge's
+legacy self-signed mode. See docs/setup.md for configuration and rotation.
 
 ### Attachment Downloads
 

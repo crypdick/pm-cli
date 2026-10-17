@@ -146,3 +146,24 @@ pm-cli config init
 ```
 
 To also reset the stored password, use your system's keyring manager to remove the `pm-cli` entry.
+
+## Verified Bridge TLS across private networks
+
+Remote IMAP/SMTP destinations require an explicit trusted certificate file:
+
+```sh
+pm-cli config set bridge.imap_host bridge.internal
+pm-cli config set bridge.smtp_host bridge.internal
+pm-cli config set bridge.tls_ca_file /path/to/bridge-public-certificate.pem
+pm-cli config set bridge.tls_server_name 127.0.0.1
+```
+
+Obtain the public certificate from the Bridge host through a trusted administrative
+channel, not by trusting an unauthenticated remote handshake. The optional
+`tls_server_name` must match an IP/DNS name in that certificate; Bridge's default
+certificate commonly contains `127.0.0.1`. With `tls_ca_file`, both protocols and
+`config doctor` verify the certificate chain and server name before authentication.
+An absent, malformed, untrusted, expired, or mismatched certificate fails closed.
+Mount the public certificate read-only in containers and update it deliberately
+when Bridge rotates it. The legacy unverified self-signed mode remains restricted
+to loopback connections when no CA is configured.

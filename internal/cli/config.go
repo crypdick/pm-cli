@@ -2,10 +2,8 @@ package cli
 
 import (
 	"bufio"
-	"crypto/tls"
 	"fmt"
 	"net"
-	netsmtp "net/smtp"
 	"os"
 	"strconv"
 	"strings"
@@ -137,11 +135,13 @@ func (c *ConfigShowCmd) Run(ctx *Context) error {
 	if ctx.Formatter.JSON {
 		return ctx.Formatter.PrintJSON(map[string]interface{}{
 			"bridge": map[string]interface{}{
-				"imap_host": ctx.Config.Bridge.IMAPHost,
-				"imap_port": ctx.Config.Bridge.IMAPPort,
-				"smtp_host": ctx.Config.Bridge.SMTPHost,
-				"smtp_port": ctx.Config.Bridge.SMTPPort,
-				"email":     ctx.Config.Bridge.Email,
+				"imap_host":       ctx.Config.Bridge.IMAPHost,
+				"imap_port":       ctx.Config.Bridge.IMAPPort,
+				"smtp_host":       ctx.Config.Bridge.SMTPHost,
+				"smtp_port":       ctx.Config.Bridge.SMTPPort,
+				"email":           ctx.Config.Bridge.Email,
+				"tls_ca_file":     ctx.Config.Bridge.TLSCAFile,
+				"tls_server_name": ctx.Config.Bridge.TLSServerName,
 			},
 			"defaults": map[string]interface{}{
 				"mailbox": ctx.Config.Defaults.Mailbox,
@@ -201,6 +201,10 @@ func (c *ConfigSetCmd) Run(ctx *Context) error {
 	switch section {
 	case "bridge":
 		switch key {
+		case "tls_ca_file":
+			ctx.Config.Bridge.TLSCAFile = c.Value
+		case "tls_server_name":
+			ctx.Config.Bridge.TLSServerName = c.Value
 		case "imap_host":
 			ctx.Config.Bridge.IMAPHost = c.Value
 		case "imap_port":
@@ -452,30 +456,14 @@ func (c *ConfigDoctorCmd) Run(ctx *Context) error {
 		} else {
 			password, err := cfg.GetPassword()
 			if err == nil {
-				client, err := pmsmtp.DialClient(smtpAddr, cfg.Bridge.SMTPHost)
+				client, err := pmsmtp.NewClient(cfg, password).Connect()
 				if err != nil {
 					addResult("SMTP connection succeeds", "fail", err.Error())
 					printResult("fail", "SMTP connection succeeds", err.Error())
 				} else {
-					tlsConfig := &tls.Config{
-						InsecureSkipVerify: true,
-						ServerName:         cfg.Bridge.SMTPHost,
-					}
-					if err := client.StartTLS(tlsConfig); err != nil {
-						client.Close()
-						addResult("SMTP connection succeeds", "fail", fmt.Sprintf("STARTTLS failed: %s", err.Error()))
-						printResult("fail", "SMTP connection succeeds", fmt.Sprintf("STARTTLS failed: %s", err.Error()))
-					} else {
-						auth := netsmtp.PlainAuth("", cfg.Bridge.Email, password, cfg.Bridge.SMTPHost)
-						if err := client.Auth(auth); err != nil {
-							addResult("SMTP connection succeeds", "fail", err.Error())
-							printResult("fail", "SMTP connection succeeds", err.Error())
-						} else {
-							addResult("SMTP connection succeeds", "ok", "")
-							printResult("ok", "SMTP connection succeeds", "")
-						}
-						client.Close()
-					}
+					client.Close()
+					addResult("SMTP connection succeeds", "ok", "")
+					printResult("ok", "SMTP connection succeeds", "")
 				}
 			} else {
 				addResult("SMTP connection succeeds", "fail", "cannot test - password not available")

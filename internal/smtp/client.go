@@ -2,7 +2,6 @@ package smtp
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -21,24 +20,6 @@ import (
 	"github.com/bscott/pm-cli/internal/config"
 	"github.com/bscott/pm-cli/internal/safetext"
 )
-
-// isLoopbackHost reports whether host is a loopback address. Accepts the
-// literal "localhost" (case-insensitive) or any IP that parses as loopback.
-// Does not resolve DNS, because DNS is itself untrusted and we want a hard
-// guarantee that we are speaking to a local process (Proton Bridge).
-func isLoopbackHost(host string) bool {
-	h := strings.ToLower(strings.TrimSpace(host))
-	if h == "" {
-		return false
-	}
-	if h == "localhost" {
-		return true
-	}
-	if ip := net.ParseIP(h); ip != nil {
-		return ip.IsLoopback()
-	}
-	return false
-}
 
 type Client struct {
 	config   *config.Config
@@ -64,13 +45,11 @@ func NewClient(cfg *config.Config, password string) *Client {
 	}
 }
 
-func (c *Client) Send(msg *Message) error {
-	// TLS skip-verify below is only safe against a locally-running Proton
-	// Bridge. Refuse to speak plaintext credentials to anything that is not
-	// a loopback address, in case the user's config was tampered with or
-	// redirected via --config.
-	if !isLoopbackHost(c.config.Bridge.SMTPHost) {
-		return fmt.Errorf("refusing to connect: SMTP host %q is not a loopback address (Proton Bridge runs on localhost; InsecureSkipVerify is unsafe for remote hosts)", c.config.Bridge.SMTPHost)
+// Connect opens and authenticates a verified STARTTLS session. Caller closes it.
+func (c *Client) Connect() (*smtp.Client, error) {
+	tlsConfig, err := c.config.Bridge.BridgeTLSConfig(c.config.Bridge.SMTPHost)
+	if err != nil {
+		return nil, err
 	}
 
 	addr := net.JoinHostPort(c.config.Bridge.SMTPHost, strconv.Itoa(c.config.Bridge.SMTPPort))
@@ -79,24 +58,30 @@ func (c *Client) Send(msg *Message) error {
 	// Proton Bridge SMTP uses STARTTLS (connect plain, then upgrade)
 	client, err := DialClient(addr, c.config.Bridge.SMTPHost)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer client.Close()
 
-	// Upgrade to TLS via STARTTLS (Proton Bridge uses self-signed cert)
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		ServerName:         c.config.Bridge.SMTPHost,
-	}
 	if err := client.StartTLS(tlsConfig); err != nil {
-		return fmt.Errorf("STARTTLS failed: %w", err)
+		client.Close()
+		return nil, fmt.Errorf("STARTTLS failed: %w", err)
 	}
 
 	// Authenticate
 	auth := smtp.PlainAuth("", c.config.Bridge.Email, c.password, c.config.Bridge.SMTPHost)
 	if err := client.Auth(auth); err != nil {
-		return fmt.Errorf("SMTP authentication failed: %w", err)
+		client.Close()
+		return nil, fmt.Errorf("SMTP authentication failed: %w", err)
 	}
+
+	return client, nil
+}
+
+func (c *Client) Send(msg *Message) error {
+	client, err := c.Connect()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
 
 	// Set sender. Reject CR/LF in envelope addresses — net/smtp writes these
 	// raw into MAIL FROM / RCPT TO lines.
