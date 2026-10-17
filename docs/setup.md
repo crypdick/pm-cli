@@ -167,3 +167,7 @@ An absent, malformed, untrusted, expired, or mismatched certificate fails closed
 Mount the public certificate read-only in containers and update it deliberately
 when Bridge rotates it. The legacy unverified self-signed mode remains restricted
 to loopback connections when no CA is configured.
+
+The optional MCP adapter supports Python 3.13 and 3.14. Python 3.15 is excluded
+until the locked FastMCP dependency stack supports its typing changes. CI tests
+both supported interpreters.

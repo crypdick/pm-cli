@@ -2,7 +2,7 @@
 name = "pm-cli-mcp"
 version = "0.1.0"
 description = "FastMCP server for the Proton Mail CLI"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.15"
 dependencies = []
 
 [project.optional-dependencies]
