@@ -24,7 +24,7 @@ func TestIsLoopbackHost(t *testing.T) {
 		{"localhost.evil.com", false},
 	}
 	for _, tc := range tests {
-		got := isLoopbackHost(tc.host)
+		got := config.IsLoopbackHost(tc.host)
 		if got != tc.want {
 			t.Errorf("isLoopbackHost(%q) = %v, want %v", tc.host, got, tc.want)
 		}

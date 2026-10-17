@@ -1,7 +1,6 @@
 package imap
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -14,24 +13,6 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
 )
-
-// isLoopbackHost reports whether host is a loopback address. Accepts the
-// literal "localhost" (case-insensitive) or any IP that parses as loopback.
-// Does not resolve DNS; DNS is itself untrusted and we want a hard
-// guarantee that we are speaking to a local process (Proton Bridge).
-func isLoopbackHost(host string) bool {
-	h := strings.ToLower(strings.TrimSpace(host))
-	if h == "" {
-		return false
-	}
-	if h == "localhost" {
-		return true
-	}
-	if ip := net.ParseIP(h); ip != nil {
-		return ip.IsLoopback()
-	}
-	return false
-}
 
 type Client struct {
 	client *imapclient.Client
@@ -134,12 +115,9 @@ func NewClient(cfg *config.Config) (*Client, error) {
 }
 
 func (c *Client) Connect() error {
-	// TLS skip-verify below is only safe against a locally-running Proton
-	// Bridge. Refuse to send the Bridge password to anything that is not a
-	// loopback address, in case the user's config was tampered with or
-	// redirected via --config.
-	if !isLoopbackHost(c.config.Bridge.IMAPHost) {
-		return fmt.Errorf("refusing to connect: IMAP host %q is not a loopback address (Proton Bridge runs on localhost; InsecureSkipVerify is unsafe for remote hosts)", c.config.Bridge.IMAPHost)
+	tlsConfig, err := c.config.Bridge.BridgeTLSConfig(c.config.Bridge.IMAPHost)
+	if err != nil {
+		return err
 	}
 
 	password, err := c.config.GetPassword()
@@ -149,13 +127,7 @@ func (c *Client) Connect() error {
 
 	addr := net.JoinHostPort(c.config.Bridge.IMAPHost, strconv.Itoa(c.config.Bridge.IMAPPort))
 
-	// TLS config for STARTTLS - skip verification for Proton Bridge self-signed certs
-	options := &imapclient.Options{
-		TLSConfig: &tls.Config{
-			InsecureSkipVerify: true,
-			ServerName:         c.config.Bridge.IMAPHost,
-		},
-	}
+	options := &imapclient.Options{TLSConfig: tlsConfig}
 
 	// Connect with STARTTLS
 	client, err := imapclient.DialStartTLS(addr, options)

@@ -31,11 +31,13 @@ const (
 )
 
 type BridgeConfig struct {
-	IMAPHost string `yaml:"imap_host"`
-	IMAPPort int    `yaml:"imap_port"`
-	SMTPHost string `yaml:"smtp_host"`
-	SMTPPort int    `yaml:"smtp_port"`
-	Email    string `yaml:"email"`
+	TLSCAFile     string `yaml:"tls_ca_file"`
+	TLSServerName string `yaml:"tls_server_name"`
+	IMAPHost      string `yaml:"imap_host"`
+	IMAPPort      int    `yaml:"imap_port"`
+	SMTPHost      string `yaml:"smtp_host"`
+	SMTPPort      int    `yaml:"smtp_port"`
+	Email         string `yaml:"email"`
 }
 
 type DefaultsConfig struct {
