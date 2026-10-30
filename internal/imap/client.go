@@ -138,7 +138,15 @@ func (c *Client) Connect() error {
 	// Login
 	if err := client.Login(c.config.Bridge.Email, password).Wait(); err != nil {
 		client.Close()
-		return fmt.Errorf("IMAP login failed: %w", err)
+		loginError := fmt.Errorf("IMAP login failed at %s: %w", addr, err)
+		switch message := strings.ToLower(err.Error()); {
+		case strings.Contains(message, "no such user"):
+			return fmt.Errorf("%w. Bridge may have unloaded its IMAP account after a backend/storage failure; this does not prove the username is wrong. Check Bridge host disk space and Bridge logs for 'no space left on device', 'Bad Event Request', or 'Removing IMAP user'. Also verify the Bridge mailbox username and Bridge app password", loginError)
+		case strings.Contains(message, "too many login attempts"):
+			return fmt.Errorf("%w. Stop automatic login retries and allow the login limit to clear. Inspect earlier Bridge logs for the initial failure, including 'no such user' or storage errors, and check Bridge host disk space. After fixing the cause, verify Bridge account status and retry once", loginError)
+		default:
+			return loginError
+		}
 	}
 
 	c.client = client

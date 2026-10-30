@@ -105,6 +105,17 @@ pm-cli config doctor --json
 
 If SMTP port reachability fails in check 6, check 8 is reported as `cannot test - SMTP port not reachable` and SMTP auth is skipped.
 
+IMAP login errors include the Bridge endpoint and preserve the original server
+response in text, JSON, and MCP output. `no such user` can mean Bridge unloaded
+its IMAP account after a backend or storage failure; it does not establish that
+the configured username is wrong. Check disk space **on the Bridge host** and
+earlier Bridge logs for `no space left on device`, `Bad Event Request`, or
+`Removing IMAP user`, then verify the mailbox username and Bridge app password.
+`too many login attempts` advises stopping automatic retries, inspecting the
+initial error, and retrying once after the cause is fixed and the limit clears.
+These are troubleshooting hints, not a diagnosis from Bridge telemetry; pm-cli
+does not read Bridge logs or restart Bridge automatically.
+
 ---
 
 ## mail
