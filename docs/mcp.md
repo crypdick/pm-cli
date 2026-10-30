@@ -30,3 +30,6 @@ Connect to `http://127.0.0.1:8000/mcp` with `Authorization: Bearer <token>`.
 Call `mailbox_list` to check the connection. Use `file_upload` and `file_read`
 for attachments. File paths must stay inside the workspace, and transfers can't
 exceed 10 MiB. If a write times out, check mailbox state before retrying it.
+CLI stdout and stderr each have the same 10 MiB limit. Exceeding either limit
+returns an error, kills the CLI process group, and drains its pipes before
+accepting another command.

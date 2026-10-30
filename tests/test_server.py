@@ -206,13 +206,22 @@ async def test_relative_binary_survives_workspace_change(binary, tmp_path, monke
     assert result["version"]
 
 
-async def test_output_limit_is_error(tmp_path):
+@pytest.mark.parametrize("stream", ["stdout", "stderr"])
+async def test_output_limit_is_error(tmp_path, stream):
     fake = tmp_path / "large"
-    fake.write_text('#!/usr/bin/env python3\nprint("x" * (11 * 1024 * 1024))\n')
+    pidfile = tmp_path / "pid"
+    fake.write_text(
+        f"#!/usr/bin/env python3\nimport os, sys\nopen({str(pidfile)!r}, 'w').write(str(os.getpid()))\nsys.{stream}.write('x' * (11 * 1024 * 1024))\n"
+    )
     fake.chmod(0o755)
     runner = Runner(str(fake), tmp_path / "files")
-    with pytest.raises(ToolError, match="output exceeds"):
-        await runner.execute({"name": "version"}, {})
+    async with asyncio.timeout(3):
+        with pytest.raises(ToolError, match="output exceeds"):
+            await runner.execute({"name": "version"}, {})
+    with pytest.raises(ProcessLookupError):
+        os.kill(int(pidfile.read_text()), 0)
+    fake.write_text('#!/usr/bin/env python3\nprint(\'{"version":"test"}\')\n')
+    assert await runner.execute({"name": "version"}, {}) == {"version": "test"}
 
 
 async def test_authenticated_http(binary, tmp_path):

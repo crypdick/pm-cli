@@ -184,6 +184,9 @@ class Runner:
                     chunks.append(chunk)
                 return b"".join(chunks)
 
+            stdout_task = asyncio.create_task(read(process.stdout))
+            stderr_task = asyncio.create_task(read(process.stderr))
+
             async def communicate():
                 process.stdin.write(stdin)
                 try:
@@ -192,7 +195,7 @@ class Runner:
                     pass
                 process.stdin.close()
                 stdout, stderr, _ = await asyncio.gather(
-                    read(process.stdout), read(process.stderr), process.wait()
+                    stdout_task, stderr_task, process.wait()
                 )
                 return stdout, stderr
 
@@ -203,7 +206,11 @@ class Runner:
                     os.killpg(process.pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
-                await process.wait()
+                stdout_task.cancel()
+                stderr_task.cancel()
+                await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+                # A paused output pipe can keep wait() blocked even after SIGKILL.
+                await process.communicate()
                 if isinstance(error, TimeoutError):
                     raise ToolError(
                         "CLI timed out; check mailbox state before retrying a write"
