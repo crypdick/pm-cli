@@ -33,3 +33,5 @@ exceed 10 MiB. If a write times out, check mailbox state before retrying it.
 CLI stdout and stderr each have the same 10 MiB limit. Exceeding either limit
 returns an error, kills the CLI process group, and drains its pipes before
 accepting another command.
+HTTP tool results use JSON responses so base64 attachments also work with
+legacy MCP clients whose SSE event limit is smaller than the file limit.

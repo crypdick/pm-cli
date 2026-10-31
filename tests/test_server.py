@@ -224,7 +224,8 @@ async def test_output_limit_is_error(tmp_path, stream):
     assert await runner.execute({"name": "version"}, {}) == {"version": "test"}
 
 
-async def test_authenticated_http(binary, tmp_path):
+@pytest.mark.parametrize("mode", ["auto", "legacy"])
+async def test_authenticated_http(binary, tmp_path, mode):
     import socket
 
     from fastmcp.client.transports import StreamableHttpTransport
@@ -264,10 +265,15 @@ async def test_authenticated_http(binary, tmp_path):
                     await http.post("/mcp", json={}, headers=headers)
                 ).status_code == 401
         async with Client(
-            StreamableHttpTransport(url + "/mcp", auth="test-mcp-token")
+            StreamableHttpTransport(url + "/mcp", auth="test-mcp-token"), mode=mode
         ) as client:
             assert (await client.call_tool("version", {})).data["version"]
             assert len(await client.list_tools()) == 38
+            payload = b"attachment fixture\n" * 65536
+            (tmp_path / "files" / "large-attachment").write_bytes(payload)
+            result = await client.call_tool("file_read", {"path": "large-attachment"})
+            assert result.data["bytes"] == len(payload)
+            assert base64.b64decode(result.data["content_base64"]) == payload
     finally:
         process.terminate()
         await asyncio.wait_for(process.wait(), 5)
