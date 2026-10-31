@@ -347,7 +347,7 @@ def main():
         Runner(args.binary, args.workspace, args.config, args.timeout), token
     )
     if args.transport == "http":
-        server.run(transport="http", host=args.host, port=args.port)
+        server.run(transport="http", host=args.host, port=args.port, json_response=True)
     else:
         server.run(transport="stdio")
 
