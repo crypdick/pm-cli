@@ -27,6 +27,7 @@ type Client struct {
 }
 
 type Message struct {
+	MessageID   string
 	From        string
 	To          []string
 	CC          []string
@@ -139,6 +140,9 @@ func (c *Client) writeMessage(w io.Writer, msg *Message) error {
 	}
 	fmt.Fprintf(w, "Subject: %s\r\n", encodeSubject(safetext.SanitizeHeaderValue(msg.Subject)))
 	fmt.Fprintf(w, "Date: %s\r\n", time.Now().Format(time.RFC1123Z))
+	if msg.MessageID != "" {
+		fmt.Fprintf(w, "Message-ID: %s\r\n", safetext.SanitizeHeaderValue(msg.MessageID))
+	}
 	if msg.InReplyTo != "" {
 		fmt.Fprintf(w, "In-Reply-To: %s\r\n", safetext.SanitizeHeaderValue(msg.InReplyTo))
 	}

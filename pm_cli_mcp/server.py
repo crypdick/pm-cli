@@ -19,6 +19,8 @@ from jsonschema import Draft202012Validator, ValidationError
 from pydantic import PrivateAttr
 from starlette.responses import PlainTextResponse
 
+from pm_cli_mcp.mail_text import readable_html
+
 MAX_BYTES = 10 * 1024 * 1024
 READ_COMMANDS = {
     "config show",
@@ -26,6 +28,9 @@ READ_COMMANDS = {
     "config validate",
     "version",
     "mail list",
+    "mail list-evidence",
+    "mail read-evidence",
+    "mail evidence-exists",
     "mail search",
     "mail thread",
     "mail summarize",
@@ -33,6 +38,7 @@ READ_COMMANDS = {
     "mail draft list",
     "mail label list",
     "mailbox list",
+    "mailbox list-evidence",
     "contacts list",
     "contacts search",
     "mail watch",
@@ -243,13 +249,14 @@ class CommandTool(Tool):
         name = command["name"]
         destructive = name in {
             "mail delete",
+            "mail delete-evidence",
             "mail draft delete",
             "mailbox delete",
             "contacts remove",
             "mail batch",
         }
         super().__init__(
-            name=name.replace(" ", "_"),
+            name=name.replace(" ", "_").replace("-", "_"),
             description=command["description"],
             parameters=command_parameters(command),
             annotations={
@@ -266,6 +273,12 @@ class CommandTool(Tool):
         except ValidationError as error:
             raise ToolError(error.message) from error
         result = await self._runner.execute(self._command, arguments)
+        if self._command["name"] in {"mail read-evidence", "mail list-evidence"}:
+            rows = [result] if self._command["name"] == "mail read-evidence" else result["messages"]
+            for row in rows:
+                html = row.pop("html_body", "")
+                if html and not row.get("body", "").strip():
+                    row["body"] = readable_html(html)
         return ToolResult(
             content=result,
             structured_content=result
