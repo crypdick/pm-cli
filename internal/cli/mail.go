@@ -1198,16 +1198,19 @@ func parseMessageBody(rawBody []byte) (textBody, htmlBody string) {
 			break
 		}
 		foundParts = true
+		if _, attachment := part.Header.(*mail.AttachmentHeader); attachment {
+			continue
+		}
 
 		partContentType := part.Header.Get("Content-Type")
 
 		switch {
-		case strings.HasPrefix(partContentType, "text/plain"):
+		case textBody == "" && strings.HasPrefix(partContentType, "text/plain"):
 			body, err := io.ReadAll(part.Body)
 			if err == nil {
 				textBody = string(body)
 			}
-		case strings.HasPrefix(partContentType, "text/html"):
+		case htmlBody == "" && strings.HasPrefix(partContentType, "text/html"):
 			body, err := io.ReadAll(part.Body)
 			if err == nil {
 				htmlBody = string(body)
