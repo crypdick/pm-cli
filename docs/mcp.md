@@ -35,3 +35,21 @@ returns an error, kills the CLI process group, and drains its pipes before
 accepting another command.
 HTTP tool results use JSON responses so base64 attachments also work with
 legacy MCP clients whose SSE event limit is smaller than the file limit.
+
+## Mail evidence
+
+`mail_list_evidence` lists a bounded read-only page. Its optional
+`sent_since` and `sent_before` filter on the message's Date header before
+pagination. `include_body` hydrates bodies and full headers in the same IMAP
+session. Keep this opt-in; metadata-only listings are smaller.
+
+`mail_read_evidence` takes the RFC Message-ID and mailbox, rejects ambiguous
+matches, preserves read state, and converts HTML-only bodies to readable text
+without fetching remote content. `mail_evidence_exists` checks presence without
+loading the body. Use `mailbox_list_evidence` for display names and exact
+mailbox identifiers.
+
+`mail_send` returns the sent Message-ID after SMTP acceptance. Existing
+idempotency keys remain supported. `mail_delete_evidence` permanently deletes
+one exact match and requires UID-scoped expunge. It never uses mailbox-wide
+expunge. Grant sends and deletions separately from read operations.

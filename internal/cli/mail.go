@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -404,7 +405,9 @@ func (c *MailSendCmd) Run(ctx *Context) error {
 
 	smtpClient := smtp.NewClient(ctx.Config, password)
 
+	messageID := "<" + rand.Text() + "@pm-cli.local>"
 	msg := &smtp.Message{
+		MessageID:   messageID,
 		From:        ctx.Config.Bridge.Email,
 		To:          to,
 		CC:          cc,
@@ -426,10 +429,11 @@ func (c *MailSendCmd) Run(ctx *Context) error {
 
 	if ctx.Formatter.JSON {
 		result := map[string]interface{}{
-			"success": true,
-			"message": "Email sent successfully",
-			"to":      to,
-			"subject": subject,
+			"success":    true,
+			"message":    "Email sent successfully",
+			"message_id": messageID,
+			"to":         to,
+			"subject":    subject,
 		}
 		if c.IdempotencyKey != "" {
 			result["idempotency_key"] = c.IdempotencyKey

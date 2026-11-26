@@ -84,24 +84,28 @@ type ConfigDoctorCmd struct{}
 
 // MailCmd handles email operations
 type MailCmd struct {
-	List      MailListCmd      `cmd:"" help:"List messages in mailbox"`
-	Read      MailReadCmd      `cmd:"" help:"Read a specific message"`
-	Send      MailSendCmd      `cmd:"" help:"Compose and send email"`
-	Reply     MailReplyCmd     `cmd:"" help:"Reply to a message"`
-	Forward   MailForwardCmd   `cmd:"" help:"Forward a message"`
-	Delete    MailDeleteCmd    `cmd:"" help:"Delete message(s)"`
-	Move      MailMoveCmd      `cmd:"" help:"Move message to mailbox"`
-	Archive   MailArchiveCmd   `cmd:"" help:"Move message(s) to Archive"`
-	Flag      MailFlagCmd      `cmd:"" help:"Manage message flags"`
-	Search    MailSearchCmd    `cmd:"" help:"Search messages"`
-	Download  MailDownloadCmd  `cmd:"" help:"Download attachment"`
-	Draft     DraftCmd         `cmd:"" help:"Manage drafts"`
-	Thread    MailThreadCmd    `cmd:"" help:"Show conversation thread"`
-	Watch     MailWatchCmd     `cmd:"" help:"Watch for new messages"`
-	Label     LabelCmd         `cmd:"" help:"Manage message labels"`
-	Summarize MailSummarizeCmd `cmd:"" help:"Summarize message for AI processing"`
-	Extract   MailExtractCmd   `cmd:"" help:"Extract structured data from message"`
-	Batch     MailBatchCmd     `cmd:"" help:"Run multiple operations in one IMAP session (JSON from stdin)"`
+	List           MailListCmd           `cmd:"" help:"List messages in mailbox"`
+	Read           MailReadCmd           `cmd:"" help:"Read a specific message"`
+	ReadEvidence   MailReadEvidenceCmd   `cmd:"" help:"Read by RFC Message-ID without updating flags"`
+	EvidenceExists MailEvidenceExistsCmd `cmd:"" help:"Check for an exact RFC Message-ID without updating flags"`
+	ListEvidence   MailListEvidenceCmd   `cmd:"" help:"List a bounded read-only page by message Date header"`
+	DeleteEvidence MailDeleteEvidenceCmd `cmd:"" help:"Permanently delete one exact RFC Message-ID using UID-scoped expunge"`
+	Send           MailSendCmd           `cmd:"" help:"Compose and send email"`
+	Reply          MailReplyCmd          `cmd:"" help:"Reply to a message"`
+	Forward        MailForwardCmd        `cmd:"" help:"Forward a message"`
+	Delete         MailDeleteCmd         `cmd:"" help:"Delete message(s)"`
+	Move           MailMoveCmd           `cmd:"" help:"Move message to mailbox"`
+	Archive        MailArchiveCmd        `cmd:"" help:"Move message(s) to Archive"`
+	Flag           MailFlagCmd           `cmd:"" help:"Manage message flags"`
+	Search         MailSearchCmd         `cmd:"" help:"Search messages"`
+	Download       MailDownloadCmd       `cmd:"" help:"Download attachment"`
+	Draft          DraftCmd              `cmd:"" help:"Manage drafts"`
+	Thread         MailThreadCmd         `cmd:"" help:"Show conversation thread"`
+	Watch          MailWatchCmd          `cmd:"" help:"Watch for new messages"`
+	Label          LabelCmd              `cmd:"" help:"Manage message labels"`
+	Summarize      MailSummarizeCmd      `cmd:"" help:"Summarize message for AI processing"`
+	Extract        MailExtractCmd        `cmd:"" help:"Extract structured data from message"`
+	Batch          MailBatchCmd          `cmd:"" help:"Run multiple operations in one IMAP session (JSON from stdin)"`
 }
 
 type MailBatchCmd struct {
@@ -290,9 +294,10 @@ type MailSearchCmd struct {
 
 // MailboxCmd handles mailbox management
 type MailboxCmd struct {
-	List   MailboxListCmd   `cmd:"" help:"List all mailboxes/folders"`
-	Create MailboxCreateCmd `cmd:"" help:"Create new mailbox"`
-	Delete MailboxDeleteCmd `cmd:"" help:"Delete mailbox"`
+	ListEvidence MailboxListEvidenceCmd `cmd:"" help:"List display names and exact mailbox identifiers"`
+	List         MailboxListCmd         `cmd:"" help:"List all mailboxes/folders"`
+	Create       MailboxCreateCmd       `cmd:"" help:"Create new mailbox"`
+	Delete       MailboxDeleteCmd       `cmd:"" help:"Delete mailbox"`
 }
 
 type MailboxListCmd struct{}

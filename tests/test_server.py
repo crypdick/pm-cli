@@ -35,7 +35,7 @@ def server(binary, tmp_path, monkeypatch):
 async def test_all_cli_operations_and_types_discovered(server):
     async with Client(server) as client:
         tools = {tool.name: tool for tool in await client.list_tools()}
-        assert len(tools) == 38
+        assert len(tools) == 43
         assert {
             "mail_reply",
             "mail_forward",
@@ -44,7 +44,16 @@ async def test_all_cli_operations_and_types_discovered(server):
             "mail_draft_edit",
             "contacts_add",
             "config_init",
+            "mail_list_evidence",
+            "mail_read_evidence",
+            "mail_evidence_exists",
+            "mailbox_list_evidence",
+            "mail_delete_evidence",
         } <= tools.keys()
+        evidence = tools["mail_read_evidence"]
+        assert evidence.annotations.read_only_hint
+        assert "unread" not in evidence.input_schema["properties"]
+        assert "message_id" in evidence.input_schema["required"]
         delete = tools["mail_delete"]
         assert delete.input_schema["properties"]["permanent"]["type"] == "boolean"
         assert delete.annotations.destructive_hint
@@ -268,7 +277,7 @@ async def test_authenticated_http(binary, tmp_path, mode):
             StreamableHttpTransport(url + "/mcp", auth="test-mcp-token"), mode=mode
         ) as client:
             assert (await client.call_tool("version", {})).data["version"]
-            assert len(await client.list_tools()) == 38
+            assert len(await client.list_tools()) == 43
             payload = b"attachment fixture\n" * 65536
             (tmp_path / "files" / "large-attachment").write_bytes(payload)
             result = await client.call_tool("file_read", {"path": "large-attachment"})
