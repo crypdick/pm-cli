@@ -42,6 +42,9 @@ legacy MCP clients whose SSE event limit is smaller than the file limit.
 `sent_since` and `sent_before` filter on the message's Date header before
 pagination. `include_body` hydrates bodies and full headers in the same IMAP
 session. Keep this opt-in; metadata-only listings are smaller.
+Body-inclusive evidence has a separate 24 MiB CLI output ceiling so a bounded
+host review can retain complete message and header evidence. Other tools
+retain the standard limit.
 
 `mail_read_evidence` takes the RFC Message-ID and mailbox, rejects ambiguous
 matches, preserves read state, and converts HTML-only bodies to readable text
