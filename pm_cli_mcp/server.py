@@ -22,6 +22,7 @@ from starlette.responses import PlainTextResponse
 from pm_cli_mcp.mail_text import readable_html
 
 MAX_BYTES = 10 * 1024 * 1024
+MAX_BATCH_EVIDENCE_BYTES = 24 * 1024 * 1024
 READ_COMMANDS = {
     "config show",
     "config doctor",
@@ -181,17 +182,22 @@ class Runner:
                 start_new_session=True,
             )
 
-            async def read(stream):
+            async def read(stream, max_bytes):
                 chunks, size = [], 0
                 while chunk := await stream.read(65536):
                     size += len(chunk)
-                    if size > MAX_BYTES:
-                        raise ToolError("CLI output exceeds 10 MiB")
+                    if size > max_bytes:
+                        raise ToolError(f"CLI output exceeds {max_bytes // 1024**2} MiB")
                     chunks.append(chunk)
                 return b"".join(chunks)
 
-            stdout_task = asyncio.create_task(read(process.stdout))
-            stderr_task = asyncio.create_task(read(process.stderr))
+            max_stdout = (
+                MAX_BATCH_EVIDENCE_BYTES
+                if command["name"] == "mail list-evidence" and arguments.get("include_body")
+                else MAX_BYTES
+            )
+            stdout_task = asyncio.create_task(read(process.stdout, max_stdout))
+            stderr_task = asyncio.create_task(read(process.stderr, MAX_BYTES))
 
             async def communicate():
                 process.stdin.write(stdin)

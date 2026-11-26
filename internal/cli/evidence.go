@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mime"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/bscott/pm-cli/internal/imap"
@@ -88,6 +89,9 @@ func decodeHeader(value string) string {
 
 func evidenceWithBody(record imap.Evidence, includeHeaders bool) bodyEvidence {
 	body, html := parseMessageBody(record.HeadersAndBody)
+	if strings.TrimSpace(body) != "" {
+		html = ""
+	}
 	output := bodyEvidence{Body: body, HTMLBody: html}
 	if includeHeaders {
 		names := make([]string, 0, len(record.Headers))
