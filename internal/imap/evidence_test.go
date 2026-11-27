@@ -57,9 +57,27 @@ func TestEvidenceUsesSentDateAndDoesNotMarkRead(t *testing.T) {
 	if _, err := fx.client.ReadEvidence("INBOX", "evidence@example"); !errors.Is(err, ErrEvidenceNotFound) {
 		t.Fatalf("a substring must not select a message: %v", err)
 	}
+	if _, err := fx.client.ReadEvidence("INBOX", "evidence@example.test"); !errors.Is(err, ErrEvidenceNotFound) || !strings.Contains(err.Error(), "including angle brackets") {
+		t.Fatalf("an unbracketed Message-ID must explain the exact-header requirement: %v", err)
+	}
 	appendEvidence(t, fx.raw, id)
 	if _, err := fx.client.ReadEvidence("INBOX", id); err == nil || !strings.Contains(err.Error(), "ambiguous") {
 		t.Fatalf("duplicate Message-ID must fail closed: %v", err)
+	}
+	var copies []Evidence
+	if err := fx.client.WalkEvidence(EvidenceOptions{Mailbox: "INBOX", Limit: 2, FullBody: true}, func(item Evidence) error {
+		copies = append(copies, item)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(copies) != 2 {
+		t.Fatalf("body-inclusive listing must retain both copies, got %d", len(copies))
+	}
+	for _, item := range copies {
+		if item.Seen || item.Headers.Get("Message-ID") != id || !strings.HasSuffix(string(item.HeadersAndBody), "body\r\n") {
+			t.Fatalf("duplicate evidence listing must preserve body and unread state: %+v", item)
+		}
 	}
 }
 

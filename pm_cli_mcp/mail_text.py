@@ -3,7 +3,9 @@
 from html.parser import HTMLParser
 from typing import override
 
-_BLOCKS = frozenset({"p", "div", "br", "li", "tr", "hr", "h1", "h2", "h3", "blockquote"})
+_BLOCKS = frozenset(
+    {"p", "div", "br", "li", "tr", "hr", "h1", "h2", "h3", "blockquote"}
+)
 _HIDDEN = frozenset({"head", "script", "style", "template"})
 _VOID = frozenset(
     {
@@ -74,9 +76,9 @@ class _MailText(HTMLParser):
             return
         if tag == "a" and self.links:
             href, start = self.links.pop()
-            if href.casefold().startswith(("https://", "http://", "mailto:")) and href not in (
-                "".join(self.parts[start:])
-            ):
+            if href.casefold().startswith(
+                ("https://", "http://", "mailto:")
+            ) and href not in ("".join(self.parts[start:])):
                 self.parts.append(f" ({href})")
         if tag in _BLOCKS:
             self.parts.append("\n")

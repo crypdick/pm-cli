@@ -52,6 +52,12 @@ without fetching remote content. `mail_evidence_exists` checks presence without
 loading the body. Use `mailbox_list_evidence` for display names and exact
 mailbox identifiers.
 
+Copy the listed Message-ID verbatim, including its angle brackets. If several
+messages share that header in one mailbox, keep the exact-match rejection and
+use a bounded `mail_list_evidence` page with `include_body=true` to review the
+copies in the same read-only session. A Message-ID alone cannot select one
+duplicate for deletion.
+
 `mail_send` returns the sent Message-ID after SMTP acceptance. Existing
 idempotency keys remain supported. `mail_delete_evidence` permanently deletes
 one exact match and requires UID-scoped expunge. It never uses mailbox-wide

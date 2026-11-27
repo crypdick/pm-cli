@@ -187,13 +187,16 @@ class Runner:
                 while chunk := await stream.read(65536):
                     size += len(chunk)
                     if size > max_bytes:
-                        raise ToolError(f"CLI output exceeds {max_bytes // 1024**2} MiB")
+                        raise ToolError(
+                            f"CLI output exceeds {max_bytes // 1024**2} MiB"
+                        )
                     chunks.append(chunk)
                 return b"".join(chunks)
 
             max_stdout = (
                 MAX_BATCH_EVIDENCE_BYTES
-                if command["name"] == "mail list-evidence" and arguments.get("include_body")
+                if command["name"] == "mail list-evidence"
+                and arguments.get("include_body")
                 else MAX_BYTES
             )
             stdout_task = asyncio.create_task(read(process.stdout, max_stdout))
@@ -280,7 +283,11 @@ class CommandTool(Tool):
             raise ToolError(error.message) from error
         result = await self._runner.execute(self._command, arguments)
         if self._command["name"] in {"mail read-evidence", "mail list-evidence"}:
-            rows = [result] if self._command["name"] == "mail read-evidence" else result["messages"]
+            rows = (
+                [result]
+                if self._command["name"] == "mail read-evidence"
+                else result["messages"]
+            )
             for row in rows:
                 html = row.pop("html_body", "")
                 if html and not row.get("body", "").strip():

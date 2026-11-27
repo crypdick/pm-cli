@@ -151,6 +151,9 @@ func (c *Client) findEvidenceUID(mailbox, messageID string, readOnly bool) (imap
 		match = uid
 	}
 	if match == 0 {
+		if !strings.ContainsAny(messageID, "<>") {
+			return 0, fmt.Errorf("%w; copy the listed Message-ID verbatim, including angle brackets", ErrEvidenceNotFound)
+		}
 		return 0, ErrEvidenceNotFound
 	}
 	return match, nil
